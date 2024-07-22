@@ -1,18 +1,31 @@
-# This is a sample Python script.
+# main program
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+class Game:
+    def __init__(self):
+        self.num_cols = 7
+        self.num_rows = 6
+        self.board = [] # array 7x6 or something
+
+        self.turns = 0 # counts num of turns, if % 2 ==0 -> player 1, else player 2
+
+    def move(self, column):
+        # place piece in given column
+
+        # check col not full
+        # change next turn is valid move
+        pass
+
+    def check_win(self):
+        # check if four in a row is obtained
+        pass
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+def main():
+    game = Game()
+    while True:
+        # ask move for player X
+        move = input("enter a column")
+        game.move(move)
+        game.check_win()
 
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-    # hhahahahah
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+main()

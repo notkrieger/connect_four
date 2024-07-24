@@ -1,111 +1,109 @@
 # main program
 import numpy as np
+import pygame
+import math
+from alphaFour import NN
+from game import Game
 
-class Game:
-    def __init__(self):
-        self.num_cols = 7
-        self.num_rows = 6
-        self.board = np.zeros((self.num_rows, self.num_cols))
+from bot import Bot
 
-        self.turns = 0
-        self.player = 1 # player 1 ==1, player 2 == -1
+def draw_screen(height, width, game, screen):
+    white = (255,255,255)
+    black = (0,0,0)
+    ydif = 0
+    xdif = 0
+    for i in np.linspace(0, height, game.num_rows + 1):
+        if i == 0:
+            ydif = np.linspace(0, height, game.num_rows + 1)[1] - \
+                   np.linspace(0, height, game.num_rows + 1)[0]
+        pygame.draw.line(screen, black, (0, i), (width, i))
+    for i in np.linspace(0, width, game.num_cols + 1):
+        if i == 0:
+            xdif = np.linspace(0, width, game.num_cols + 1)[1] - \
+                   np.linspace(0, width, game.num_cols + 1)[0]
+        pygame.draw.line(screen, black, (i, 0), (i, height))
+    for i in range(game.num_rows):
+        for j in range(game.num_cols):
+            pygame.draw.circle(screen, white, ((j + 1 / 2) * xdif, (i + 1 / 2) * ydif), 1 / 3 * min(xdif, ydif))
+    return xdif, ydif
 
-    def move(self, column):
-        # place piece in given column
-        for i in range(self.num_rows - 1, -1, -1):
-            if self.board[i][column] == 0:
-                self.board[i][column] = self.player
-                self.turns += 1
-                return True
-        return False
+pygame.init()
 
-    def update_player(self):
-        self.player *= -1
+def run_game():
+    width = 720
+    height = 540
+    screen = pygame.display.set_mode((width, height))  # open pygame window
+    red = (255, 0 ,0)
+    blue = (86, 176, 228)
+    yellow = (255, 255, 0)
 
-    def check_win(self, lastCol):
-        # lastCol is the last move made
-        if self.turns < 7:  # need at least 4 pieces for first player
-            return False
+    game = Game() # initialise game
 
-        # check if four in a row is obtained
-        # find row of last move
-        row = -10
-        for i in range(self.num_rows):
-            if self.board[i][lastCol] != 0:
-                row = i
-                break
-        if row < 0: # something went wrong
-            return False
-        goal = self.board[row][lastCol]
-        if row <= 2: # check vertically down
-            if self.board[row+1][lastCol] == goal and \
-                    self.board[row+2][lastCol] == goal and \
-                    self.board[row+3][lastCol] == goal:
-                return True
+    # draw initial board
+    screen.fill(blue)
+    xdif, ydif = draw_screen(height, width, game, screen)
+    pygame.display.flip()
 
-        # check horizontal
-        for i in range(lastCol - 3, lastCol + 3):
-            if i < 0 or i >= self.num_cols - 3:
-                # because algorithm is checking left to right,
-                # dont need to check positions 4,5,6 since it would be covered in checks of 0,1,2,3
+    bot = Bot(game, -1)
+
+    while True:
+        lastMove = -1
+        # bot move
+        if game.turns % 2 == 1:
+            bot_move = bot.make_move()
+            if game.move(bot_move):
+                game.update_player()
+                lastMove = bot_move
+                row = -10
+                for i in range(game.num_rows):
+                    if game.board[i][bot_move] != 0:
+                        row = i
+                        break
+                pygame.draw.circle(screen, yellow, ((bot_move + 1 / 2) * xdif,
+                                                (row + 1 / 2) * ydif), 1 / 3 * min(xdif, ydif))
+                pygame.display.flip()
+        # human move
+        else:
+            event = pygame.event.poll()
+            # ask move for player X
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # check for left click
+                x, y = pygame.mouse.get_pos()
+                move = math.floor(x / width * game.num_cols)
+            elif event.type == pygame.KEYDOWN:
+                move = event.key - 48
+                if move < 0 or move >= game.num_cols:
+                    print("please try again")
+                    continue
+            else:
                 continue
-            if self.board[row][i] == goal and \
-                    self.board[row][i + 1] == goal and \
-                    self.board[row][i + 2] == goal and \
-                    self.board[row][i + 3] == goal:
-                return True
+            if game.move(move):
+                lastMove = move
+                game.update_player()
+                row = -10
+                for i in range(game.num_rows):
+                    if game.board[i][move] != 0:
+                        row = i
+                        break
+                pygame.draw.circle(screen, red, ((move + 1 / 2) * xdif,
+                                                (row + 1 / 2) * ydif), 1/3*min(xdif, ydif))
+                pygame.display.flip()
+            else:
+                print("please try again")
+        #
+        if lastMove != -1:
+            pass
+        # cehck for win
+        if game.check_win(lastMove):  # check win given last move
+            winner = ""
+            if game.player*-1 == 1:
+                winner = "YOU"
+            else:
+                winner = "the bot"
+            print("game over. " + winner + " wins the game.")
+            break
 
-        # check diagonal
-        for i in range(3, -4, -1):
-            coli = lastCol - i
-            rowu = row + i # up diagonal from left to right
-            rowd = row - i # down diagonal
-            if coli < 0 or coli >= self.num_cols - 3:
-                continue
-            if rowu > 2 and rowu < self.num_rows: # check at a low enough row for 4 up to be possible
-                if self.board[rowu][coli] == goal and \
-                        self.board[rowu - 1][coli + 1] == goal and \
-                        self.board[rowu - 2][coli + 2] == goal and \
-                        self.board[rowu - 3][coli + 3] == goal:
-                    return True
-            if rowd >= 0 and rowd < self.num_rows - 3:
-                if self.board[rowd][coli] == goal and \
-                        self.board[rowd + 1][coli + 1] == goal and \
-                        self.board[rowd + 2][coli + 2] == goal and \
-                        self.board[rowd + 3][coli + 3] == goal:
-                    return True
-
-        return False
-
-    # print the current game state in a readable format
-    def print_board(self):
-        for i in range(self.num_rows):
-            print(self.board[i])
-
-def bot_move(board):
-    # algorithm to make a move (hopefully a good one)
-    pass
-
-def askMove():
-    move = input("enter a column:\n")  # meant to check valid, but im going to skip
-    return move
 
 def main():
-    game = Game()
-    game.print_board() # empty board
-    while True:
-        # ask move for player X
-        move = int(askMove())
-        if not game.move(move):
-            print("try again")
-            continue
-
-        game.print_board()  # after move
-
-        if game.check_win(move): # check win given last move
-            print("game over player: " + str(game.player) + " wins the game.")
-            break
-        game.update_player()
-
+    run_game()
 
 main()
